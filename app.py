@@ -48,36 +48,21 @@ prompt=ChatPromptTemplate.from_template(
 
     """)
 
-def create_vector_embedding():
-    #storing everything in a session
-    if "vectors" not in st.session_state:
-        st.session_state.embeddings=HuggingFaceEmbeddings()
-        st.session_state.loader=PyPDFDirectoryLoader("research_paper") ## Data Ingestion step
-        st.session_state.docs=st.session_state.loader.load() ## Document Loading
-        st.session_state.text_splitter=RecursiveCharacterTextSplitter(chunk_size=1000,chunk_overlap=200)
-        st.session_state.final_documents=st.session_state.text_splitter.split_documents(st.session_state.docs)
-        st.session_state.vectors=FAISS.from_documents(st.session_state.final_documents,st.session_state.embeddings)
-
-st.title("RAG Document Q&A With Groq And Lama3 only on LLM and TRANSFORMERS topic")
-st.subheader("First Press Document Embedding Button Than Start Your Questions.")
-
-user_prompt=st.text_input("Enter your query from the research paper")
-
-if st.button("Document Embedding"):
-    create_vector_embedding()
-    st.write("Vector Database is ready")
+#importing vectore store and embedding
+embeddings=HuggingFaceEmbeddings()
+vectorstore = FAISS.load_local("faiss_vector_store", embeddings,allow_dangerous_deserialization=True)
 
 
-import time
+st.title("RAG Document Q&A With Groq And Lama3 on Cricket")
+
+user_prompt=st.text_input("Enter your query related to cricket:")
 
 if user_prompt:
     document_chain=create_stuff_documents_chain(llm,prompt)
-    retriever=st.session_state.vectors.as_retriever()
+    retriever=vectorstore.as_retriever()
     retrieval_chain=create_retrieval_chain(retriever,document_chain)
 
-    start=time.process_time()
     response=retrieval_chain.invoke({'input':user_prompt})
-    print(f"Response time :{time.process_time()-start}")
 
     st.write(response['answer'])
 
@@ -86,4 +71,3 @@ if user_prompt:
         for i,doc in enumerate(response['context']):
             st.write(doc.page_content)
             st.write('------------------------')
-
